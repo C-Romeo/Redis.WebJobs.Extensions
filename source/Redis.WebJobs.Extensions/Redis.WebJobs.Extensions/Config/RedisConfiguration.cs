@@ -15,16 +15,13 @@ namespace Redis.WebJobs.Extensions
 {
     public class RedisConfiguration : IExtensionConfigProvider
     {
+        private readonly INameResolver _resolver;
         internal const string AzureWebJobsRedisConnectionStringSetting = "AzureWebJobsRedisConnectionString";
         
-        public RedisConfiguration(string connectionStringSetting)
-           : this()
-        {
-            SetConnectionString(connectionStringSetting);
-        }
 
-        public RedisConfiguration()
+        public RedisConfiguration(INameResolver resolver)
         {
+            _resolver = resolver;
             LastValueKeyNamePrefix = "Previous_";
             CheckCacheFrequency = TimeSpan.FromSeconds(30);
 
@@ -39,7 +36,7 @@ namespace Redis.WebJobs.Extensions
 
         private void SetConnectionString(string settingName)
         {
-            ConnectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(settingName);
+            //ConnectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(settingName);
         }
 
         public void Initialize(ExtensionConfigContext context)
@@ -49,14 +46,9 @@ namespace Redis.WebJobs.Extensions
                 throw new ArgumentNullException("context");
             }
 
-            INameResolver nameResolver = context.Config.GetService<INameResolver>();
+            ConnectionString = _resolver.Resolve($"ConnectionStrings:{AzureWebJobsRedisConnectionStringSetting}");
+            ConnectionString = ConnectionString ?? _resolver.Resolve(AzureWebJobsRedisConnectionStringSetting);
 
-            if (string.IsNullOrEmpty(ConnectionString))
-            {
-                var resolvedConnectionStringSetting = nameResolver.Resolve(AzureWebJobsRedisConnectionStringSetting);
-                ConnectionString = resolvedConnectionStringSetting;
-            }
-            
             var bindingRule = context.AddBindingRule<RedisAttribute>();
             bindingRule.AddValidator(ValidateConnection);
             bindingRule.BindToCollector<RedisMessageOpenType>(typeof(RedisOpenTypeConverter<>), this);

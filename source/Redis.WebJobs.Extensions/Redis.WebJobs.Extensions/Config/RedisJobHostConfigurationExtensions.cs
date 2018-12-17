@@ -1,38 +1,29 @@
 ﻿
 using Microsoft.Azure.WebJobs;
 using System;
+using Microsoft.Extensions.Configuration;
 
 namespace Redis.WebJobs.Extensions
 {
     public static class RedisJobHostConfigurationExtensions
     {
-        public static void UseRedis(this JobHostConfiguration config, RedisConfiguration redisConfig = null)
+        public static void UseRedis(this IWebJobsBuilder b)
         {
-            if (config == null)
+            if (b == null)
             {
                 throw new ArgumentNullException("config");
             }
 
-            if (redisConfig == null)
-            {
-                redisConfig = new RedisConfiguration();
-            }
 
-            config.RegisterExtensionConfigProvider(redisConfig);
+            b.AddExtension<RedisConfiguration>().ConfigureOptions<RedisConfiguration>((config, options) =>
+            {
+                config.Bind(options);
+                options.ConnectionString =
+                    config.GetConnectionString(RedisConfiguration.AzureWebJobsRedisConnectionStringSetting);
+                //options.ConnectionString
+            });
         }
 
-        public static void UseRedis(this JobHostConfiguration config, TimeSpan checkCacheFrequency)
-        {
-            if (config == null)
-            {
-                throw new ArgumentNullException("config");
-            }
-
-            var redisConfig = new RedisConfiguration();
-            redisConfig.CheckCacheFrequency = checkCacheFrequency;
-
-            config.UseRedis(redisConfig);
-        }
         
     }
 }
